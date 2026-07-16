@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Matrix AE — Lead Batch Runner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+  :root{
+    --bg: #0A0C10;
+    --surface: #12151C;
+    --surface-2: #171B24;
+    --border: #232838;
+    --text: #E7EAF2;
+    --muted: #8891A5;
+    --accent: #5B8DEF;
+    --accent-soft: rgba(91,141,239,0.14);
+    --teal: #2DD4BF;
+    --teal-soft: rgba(45,212,191,0.14);
+    --error: #F0616B;
+    --error-soft: rgba(240,97,107,0.14);
+    --radius: 10px;
+    --font-display: 'Space Grotesk', sans-serif;
+    --font-body: 'Inter', sans-serif;
+    --font-mono: 'IBM Plex Mono', monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    min-height: 100vh;
+  }
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(ellipse 900px 500px at 50% -10%, rgba(91,141,239,0.10), transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  #shape-grid-bg {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    width: 100vw;
+    height: 100vh;
+    display: block;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #shape-grid-bg { display: none; }
+  }
+
+  .wrap {
+    position: relative;
+    z-index: 1;
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 48px 24px 96px;
+  }
+
+  header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 40px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .brand {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 1.15rem;
+    letter-spacing: -0.01em;
+  }
+  .brand span { color: var(--accent); }
+  .brand-sub {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+
+  h1 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 1.9rem;
+    letter-spacing: -0.02em;
+    margin-bottom: 8px;
+  }
+  .lede {
+    color: var(--muted);
+    font-size: 0.98rem;
+    max-width: 60ch;
+    line-height: 1.6;
+    margin-bottom: 36px;
+  }
+
+  /* ---------- Upload card ---------- */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px;
+  }
+
+  #upload-view .card {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .dropzone {
+    border: 1.5px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 36px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 180ms ease, background 180ms ease;
+    position: relative;
+  }
+  .dropzone:hover, .dropzone:focus-visible, .dropzone.drag-over {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    outline: none;
+  }
+  .dropzone input[type=file] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+  .dropzone-icon {
+    font-family: var(--font-mono);
+    font-size: 1.4rem;
+    color: var(--accent);
+    margin-bottom: 10px;
+  }
+  .dropzone-label {
+    font-weight: 500;
+    font-size: 0.95rem;
+  }
+  .dropzone-hint {
+    color: var(--muted);
+    font-size: 0.82rem;
+    margin-top: 6px;
+    font-family: var(--font-mono);
+  }
+  .file-chosen {
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    color: var(--teal);
+    margin-top: 12px;
+  }
+
+  label.field-label {
+    display: block;
+    font-size: 0.82rem;
+    color: var(--muted);
+    margin-bottom: 8px;
+    font-family: var(--font-mono);
+    letter-spacing: 0.02em;
+  }
+  input[type=email] {
+    width: 100%;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-size: 0.95rem;
+    font-family: var(--font-body);
+  }
+  input[type=email]:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  button.primary {
+    background: var(--accent);
+    color: #0A0C10;
+    border: none;
+    border-radius: 8px;
+    padding: 14px 20px;
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: transform 120ms ease, box-shadow 120ms ease, opacity 120ms ease;
+  }
+  button.primary:hover:not(:disabled) {
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+  button.primary:active:not(:disabled) { transform: scale(0.98); }
+  button.primary:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+  button.primary:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .error-banner {
+    background: var(--error-soft);
+    border: 1px solid rgba(240,97,107,0.35);
+    color: var(--error);
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-size: 0.88rem;
+    display: none;
+  }
+  .error-banner.show { display: block; }
+
+  /* ---------- Run view ---------- */
+  #run-view { display: none; }
+
+  .run-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 22px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .run-meta {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--muted);
+  }
+  .run-meta b { color: var(--text); }
+
+  .overall-bar {
+    height: 6px;
+    background: var(--surface-2);
+    border-radius: 999px;
+    overflow: hidden;
+    margin-bottom: 30px;
+    border: 1px solid var(--border);
+  }
+  .overall-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--teal));
+    width: 0%;
+    transition: width 500ms ease;
+  }
+
+  .company-row {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px 22px;
+    margin-bottom: 14px;
+    animation: rise 320ms ease both;
+  }
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .company-name {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 1.02rem;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .company-name .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--muted);
+  }
+  .company-name.done .dot { background: var(--teal); }
+  .company-name.error .dot { background: var(--error); }
+
+  .pipeline {
+    display: flex;
+    align-items: center;
+    position: relative;
+  }
+  .pipeline-track {
+    position: absolute;
+    left: 12px; right: 12px; top: 12px;
+    height: 2px;
+    background: var(--border);
+    z-index: 0;
+  }
+  .pipeline-track-fill {
+    position: absolute;
+    left: 12px; top: 12px;
+    height: 2px;
+    background: var(--teal);
+    z-index: 1;
+    width: 0%;
+    transition: width 450ms ease;
+  }
+  .stage {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    position: relative;
+    z-index: 2;
+  }
+  .stage-dot {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    background: var(--surface-2);
+    border: 2px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    color: var(--muted);
+    transition: all 250ms ease;
+  }
+  .stage.done .stage-dot {
+    background: var(--teal-soft);
+    border-color: var(--teal);
+    color: var(--teal);
+  }
+  .stage.active .stage-dot {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    color: var(--accent);
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+  .stage.error .stage-dot {
+    background: var(--error-soft);
+    border-color: var(--error);
+    color: var(--error);
+  }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 var(--accent-soft); }
+    50% { box-shadow: 0 0 0 5px transparent; }
+  }
+  .stage-label {
+    font-size: 0.68rem;
+    color: var(--muted);
+    text-align: center;
+    letter-spacing: 0.01em;
+  }
+  .stage.done .stage-label, .stage.active .stage-label { color: var(--text); }
+
+  .email-preview {
+    margin-top: 16px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    animation: rise 320ms ease both;
+  }
+  .email-preview .subject {
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    color: var(--teal);
+    margin-bottom: 6px;
+  }
+  .email-preview .snippet {
+    font-size: 0.87rem;
+    color: var(--muted);
+    line-height: 1.55;
+    max-height: 4.6em;
+    overflow: hidden;
+  }
+  .email-preview a.site-link {
+    display: inline-block;
+    margin-top: 10px;
+    font-size: 0.8rem;
+    color: var(--accent);
+    text-decoration: none;
+    font-family: var(--font-mono);
+  }
+  .email-preview a.site-link:hover { text-decoration: underline; }
+
+  .done-banner {
+    text-align: center;
+    padding: 28px;
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+  }
+  .done-banner b { color: var(--teal); }
+
+  @media (max-width: 560px) {
+    .stage-label { display: none; }
+    h1 { font-size: 1.5rem; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="shape-grid-bg"></canvas>
+
+<div class="wrap">
+
+  <header>
+    <div>
+      <div class="brand">Matrix <span>AE</span></div>
+      <div class="brand-sub">Lead Generation — Batch Runner</div>
+    </div>
+  </header>
+
+  <div id="upload-view">
+    <h1>Start a new batch</h1>
+    <p class="lede">Upload your CSV of prospects. We'll scrape, analyze, design, and reach out to every company automatically — watch it happen below.</p>
+
+    <div class="card">
+      <div class="dropzone" id="dropzone" tabindex="0">
+        <input type="file" id="csv-input" accept=".csv" />
+        <div class="dropzone-icon">↑</div>
+        <div class="dropzone-label">Drop your CSV here, or click to browse</div>
+        <div class="dropzone-hint">expects columns: Name, Email, Website</div>
+        <div class="file-chosen" id="file-chosen"></div>
+      </div>
+
+      <div>
+        <label class="field-label" for="notify-email">YOUR EMAIL (we'll notify you when it's done)</label>
+        <input type="email" id="notify-email" placeholder="you@matrix-ae.com" required />
+      </div>
+
+      <div class="error-banner" id="error-banner"></div>
+
+      <button class="primary" id="start-btn" disabled>Start batch</button>
+    </div>
+  </div>
+
+  <div id="run-view">
+    <div class="run-header">
+      <div class="run-meta">BATCH <b id="batch-id-label">—</b></div>
+      <div class="run-meta"><b id="done-count">0</b> / <span id="total-count">0</span> companies done</div>
+    </div>
+    <div class="overall-bar"><div class="overall-bar-fill" id="overall-fill"></div></div>
+
+    <div id="company-list"></div>
+
+    <div class="done-banner" id="done-banner" style="display:none;">
+      Batch complete. <b id="final-count"></b> sites generated — check your email for the summary.
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // ====== CONFIG — fill these in with your actual n8n URLs ======
+  const INTAKE_URL = "https://overstay-choosy-succulent.ngrok-free.dev/webhook/intake";
+  const STATUS_URL = "https://overstay-choosy-succulent.ngrok-free.dev/webhook/batch-status";
+  const POLL_INTERVAL_MS = 3000;
+  // ================================================================
+
+  const STAGES = [
+    { key: "scraping",    label: "Scraping" },
+    { key: "analysis",    label: "Analysis" },
+    { key: "design",      label: "Design" },
+    { key: "publishing",  label: "Publish" },
+    { key: "email_ready", label: "Email" },
+  ];
+
+  // ---- Ambient background: ShapeGrid (vanilla JS port) ----
+  function initShapeGrid(canvas, {
+    direction = 'right',
+    speed = 1,
+    borderColor = '#999',
+    squareSize = 40,
+    hoverFillColor = '#222',
+    shape = 'square',
+    hoverTrailAmount = 0,
+  } = {}) {
+    const ctx = canvas.getContext('2d');
+    let numSquaresX, numSquaresY;
+    const gridOffset = { x: 0, y: 0 };
+    let hoveredSquare = null;
+    let trailCells = [];
+    const cellOpacities = new Map();
+    let rafId = null;
+
+    const isHex = shape === 'hexagon';
+    const isTri = shape === 'triangle';
+    const hexHoriz = squareSize * 1.5;
+    const hexVert = squareSize * Math.sqrt(3);
+
+    function resizeCanvas() {
+      canvas.width = canvas.offsetWidth;
+      canvas.height = canvas.offsetHeight;
+      numSquaresX = Math.ceil(canvas.width / squareSize) + 1;
+      numSquaresY = Math.ceil(canvas.height / squareSize) + 1;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    function drawHex(cx, cy, size) {
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const angle = (Math.PI / 3) * i;
+        const vx = cx + size * Math.cos(angle);
+        const vy = cy + size * Math.sin(angle);
+        if (i === 0) ctx.moveTo(vx, vy); else ctx.lineTo(vx, vy);
+      }
+      ctx.closePath();
+    }
+    function drawCircle(cx, cy, size) {
+      ctx.beginPath();
+      ctx.arc(cx, cy, size / 2, 0, Math.PI * 2);
+      ctx.closePath();
+    }
+    function drawTriangle(cx, cy, size, flip) {
+      ctx.beginPath();
+      if (flip) {
+        ctx.moveTo(cx, cy + size / 2);
+        ctx.lineTo(cx + size / 2, cy - size / 2);
+        ctx.lineTo(cx - size / 2, cy - size / 2);
+      } else {
+        ctx.moveTo(cx, cy - size / 2);
+        ctx.lineTo(cx + size / 2, cy + size / 2);
+        ctx.lineTo(cx - size / 2, cy + size / 2);
+      }
+      ctx.closePath();
+    }
+
+    function drawGrid() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      if (isHex) {
+        const colShift = Math.floor(gridOffset.x / hexHoriz);
+        const offsetX = ((gridOffset.x % hexHoriz) + hexHoriz) % hexHoriz;
+        const offsetY = ((gridOffset.y % hexVert) + hexVert) % hexVert;
+        const cols = Math.ceil(canvas.width / hexHoriz) + 3;
+        const rows = Math.ceil(canvas.height / hexVert) + 3;
+        for (let col = -2; col < cols; col++) {
+          for (let row = -2; row < rows; row++) {
+            const cx = col * hexHoriz + offsetX;
+            const cy = row * hexVert + ((col + colShift) % 2 !== 0 ? hexVert / 2 : 0) + offsetY;
+            const alpha = cellOpacities.get(`${col},${row}`);
+            if (alpha) {
+              ctx.globalAlpha = alpha;
+              drawHex(cx, cy, squareSize);
+              ctx.fillStyle = hoverFillColor;
+              ctx.fill();
+              ctx.globalAlpha = 1;
+            }
+            drawHex(cx, cy, squareSize);
+            ctx.strokeStyle = borderColor;
+            ctx.stroke();
+          }
+        }
+      } else if (isTri) {
+        const halfW = squareSize / 2;
+        const colShift = Math.floor(gridOffset.x / halfW);
+        const rowShift = Math.floor(gridOffset.y / squareSize);
+        const offsetX = ((gridOffset.x % halfW) + halfW) % halfW;
+        const offsetY = ((gridOffset.y % squareSize) + squareSize) % squareSize;
+        const cols = Math.ceil(canvas.width / halfW) + 4;
+        const rows = Math.ceil(canvas.height / squareSize) + 4;
+        for (let col = -2; col < cols; col++) {
+          for (let row = -2; row < rows; row++) {
+            const cx = col * halfW + offsetX;
+            const cy = row * squareSize + squareSize / 2 + offsetY;
+            const flip = ((col + colShift + row + rowShift) % 2 + 2) % 2 !== 0;
+            const alpha = cellOpacities.get(`${col},${row}`);
+            if (alpha) {
+              ctx.globalAlpha = alpha;
+              drawTriangle(cx, cy, squareSize, flip);
+              ctx.fillStyle = hoverFillColor;
+              ctx.fill();
+              ctx.globalAlpha = 1;
+            }
+            drawTriangle(cx, cy, squareSize, flip);
+            ctx.strokeStyle = borderColor;
+            ctx.stroke();
+          }
+        }
+      } else if (shape === 'circle') {
+        const offsetX = ((gridOffset.x % squareSize) + squareSize) % squareSize;
+        const offsetY = ((gridOffset.y % squareSize) + squareSize) % squareSize;
+        const cols = Math.ceil(canvas.width / squareSize) + 3;
+        const rows = Math.ceil(canvas.height / squareSize) + 3;
+        for (let col = -2; col < cols; col++) {
+          for (let row = -2; row < rows; row++) {
+            const cx = col * squareSize + squareSize / 2 + offsetX;
+            const cy = row * squareSize + squareSize / 2 + offsetY;
+            const alpha = cellOpacities.get(`${col},${row}`);
+            if (alpha) {
+              ctx.globalAlpha = alpha;
+              drawCircle(cx, cy, squareSize);
+              ctx.fillStyle = hoverFillColor;
+              ctx.fill();
+              ctx.globalAlpha = 1;
+            }
+            drawCircle(cx, cy, squareSize);
+            ctx.strokeStyle = borderColor;
+            ctx.stroke();
+          }
+        }
+      } else {
+        const offsetX = ((gridOffset.x % squareSize) + squareSize) % squareSize;
+        const offsetY = ((gridOffset.y % squareSize) + squareSize) % squareSize;
+        const cols = Math.ceil(canvas.width / squareSize) + 3;
+        const rows = Math.ceil(canvas.height / squareSize) + 3;
+        for (let col = -2; col < cols; col++) {
+          for (let row = -2; row < rows; row++) {
+            const sx = col * squareSize + offsetX;
+            const sy = row * squareSize + offsetY;
+            const alpha = cellOpacities.get(`${col},${row}`);
+            if (alpha) {
+              ctx.globalAlpha = alpha;
+              ctx.fillStyle = hoverFillColor;
+              ctx.fillRect(sx, sy, squareSize, squareSize);
+              ctx.globalAlpha = 1;
+            }
+            ctx.strokeStyle = borderColor;
+            ctx.strokeRect(sx, sy, squareSize, squareSize);
+          }
+        }
+      }
+    }
+
+    function updateCellOpacities() {
+      const targets = new Map();
+      if (hoveredSquare) targets.set(`${hoveredSquare.x},${hoveredSquare.y}`, 1);
+      if (hoverTrailAmount > 0) {
+        for (let i = 0; i < trailCells.length; i++) {
+          const t = trailCells[i];
+          const key = `${t.x},${t.y}`;
+          if (!targets.has(key)) targets.set(key, (trailCells.length - i) / (trailCells.length + 1));
+        }
+      }
+      for (const [key] of targets) if (!cellOpacities.has(key)) cellOpacities.set(key, 0);
+      for (const [key, opacity] of cellOpacities) {
+        const target = targets.get(key) || 0;
+        const next = opacity + (target - opacity) * 0.15;
+        if (next < 0.005) cellOpacities.delete(key); else cellOpacities.set(key, next);
+      }
+    }
+
+    function updateAnimation() {
+      const effectiveSpeed = Math.max(speed, 0.1);
+      const wrapX = isHex ? hexHoriz * 2 : squareSize;
+      const wrapY = isHex ? hexVert : isTri ? squareSize * 2 : squareSize;
+      switch (direction) {
+        case 'right': gridOffset.x = (gridOffset.x - effectiveSpeed + wrapX) % wrapX; break;
+        case 'left':  gridOffset.x = (gridOffset.x + effectiveSpeed + wrapX) % wrapX; break;
+        case 'up':    gridOffset.y = (gridOffset.y + effectiveSpeed + wrapY) % wrapY; break;
+        case 'down':  gridOffset.y = (gridOffset.y - effectiveSpeed + wrapY) % wrapY; break;
+        case 'diagonal':
+          gridOffset.x = (gridOffset.x - effectiveSpeed + wrapX) % wrapX;
+          gridOffset.y = (gridOffset.y - effectiveSpeed + wrapY) % wrapY;
+          break;
+      }
+      updateCellOpacities();
+      drawGrid();
+      rafId = requestAnimationFrame(updateAnimation);
+    }
+
+    function cellFromPoint(mouseX, mouseY) {
+      if (isHex) {
+        const colShift = Math.floor(gridOffset.x / hexHoriz);
+        const offsetX = ((gridOffset.x % hexHoriz) + hexHoriz) % hexHoriz;
+        const offsetY = ((gridOffset.y % hexVert) + hexVert) % hexVert;
+        const col = Math.round((mouseX - offsetX) / hexHoriz);
+        const rowOffset = (col + colShift) % 2 !== 0 ? hexVert / 2 : 0;
+        const row = Math.round((mouseY - offsetY - rowOffset) / hexVert);
+        return { x: col, y: row };
+      } else if (isTri) {
+        const halfW = squareSize / 2;
+        const offsetX = ((gridOffset.x % halfW) + halfW) % halfW;
+        const offsetY = ((gridOffset.y % squareSize) + squareSize) % squareSize;
+        const col = Math.round((mouseX - offsetX) / halfW);
+        const row = Math.floor((mouseY - offsetY) / squareSize);
+        return { x: col, y: row };
+      } else if (shape === 'circle') {
+        const offsetX = ((gridOffset.x % squareSize) + squareSize) % squareSize;
+        const offsetY = ((gridOffset.y % squareSize) + squareSize) % squareSize;
+        const col = Math.round((mouseX - offsetX) / squareSize);
+        const row = Math.round((mouseY - offsetY) / squareSize);
+        return { x: col, y: row };
+      } else {
+        const offsetX = ((gridOffset.x % squareSize) + squareSize) % squareSize;
+        const offsetY = ((gridOffset.y % squareSize) + squareSize) % squareSize;
+        const col = Math.floor((mouseX - offsetX) / squareSize);
+        const row = Math.floor((mouseY - offsetY) / squareSize);
+        return { x: col, y: row };
+      }
+    }
+
+    function handleMouseMove(event) {
+      const rect = canvas.getBoundingClientRect();
+      const cell = cellFromPoint(event.clientX - rect.left, event.clientY - rect.top);
+      if (!hoveredSquare || hoveredSquare.x !== cell.x || hoveredSquare.y !== cell.y) {
+        if (hoveredSquare && hoverTrailAmount > 0) {
+          trailCells.unshift({ ...hoveredSquare });
+          if (trailCells.length > hoverTrailAmount) trailCells.length = hoverTrailAmount;
+        }
+        hoveredSquare = cell;
+      }
+    }
+    function handleMouseLeave() {
+      if (hoveredSquare && hoverTrailAmount > 0) {
+        trailCells.unshift({ ...hoveredSquare });
+        if (trailCells.length > hoverTrailAmount) trailCells.length = hoverTrailAmount;
+      }
+      hoveredSquare = null;
+    }
+
+    canvas.addEventListener('mousemove', handleMouseMove);
+    canvas.addEventListener('mouseleave', handleMouseLeave);
+    rafId = requestAnimationFrame(updateAnimation);
+
+    return () => {
+      window.removeEventListener('resize', resizeCanvas);
+      cancelAnimationFrame(rafId);
+      canvas.removeEventListener('mousemove', handleMouseMove);
+      canvas.removeEventListener('mouseleave', handleMouseLeave);
+    };
+  }
+
+  (function mountShapeGrid() {
+    const canvas = document.getElementById('shape-grid-bg');
+    if (!canvas) return;
+    const styles = getComputedStyle(document.documentElement);
+    const border = styles.getPropertyValue('--border').trim() || '#232838';
+    const accentSoft = styles.getPropertyValue('--accent-soft').trim() || 'rgba(91,141,239,0.14)';
+    initShapeGrid(canvas, {
+      direction: 'diagonal',
+      speed: 0.28,
+      squareSize: 42,
+      borderColor: border,
+      hoverFillColor: accentSoft,
+      shape: 'square',
+      hoverTrailAmount: 6,
+    });
+  })();
+
+  const dropzone = document.getElementById('dropzone');
+  const csvInput = document.getElementById('csv-input');
+  const fileChosen = document.getElementById('file-chosen');
+  const startBtn = document.getElementById('start-btn');
+  const notifyEmail = document.getElementById('notify-email');
+  const errorBanner = document.getElementById('error-banner');
+
+  let parsedRows = [];
+  let selectedFile = null;
+
+  function showError(msg) {
+    errorBanner.textContent = msg;
+    errorBanner.classList.add('show');
+  }
+  function clearError() {
+    errorBanner.classList.remove('show');
+  }
+
+  function validateForm() {
+    startBtn.disabled = !(selectedFile && parsedRows.length > 0 && notifyEmail.checkValidity() && notifyEmail.value);
+  }
+
+  csvInput.addEventListener('change', handleFile);
+  dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('drag-over'); });
+  dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag-over'));
+  dropzone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropzone.classList.remove('drag-over');
+    if (e.dataTransfer.files.length) {
+      csvInput.files = e.dataTransfer.files;
+      handleFile();
+    }
+  });
+  notifyEmail.addEventListener('input', validateForm);
+
+  function handleFile() {
+    clearError();
+    const file = csvInput.files[0];
+    if (!file) return;
+    selectedFile = file;
+
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (results) => {
+        const rows = results.data.filter(r => r.Name && r.Name.trim());
+        if (rows.length === 0) {
+          showError("Couldn't find any rows with a Name column — check your CSV headers.");
+          selectedFile = null;
+          fileChosen.textContent = '';
+          validateForm();
+          return;
+        }
+        parsedRows = rows;
+        fileChosen.textContent = `✓ ${file.name} — ${rows.length} companies`;
+        validateForm();
+      },
+      error: () => {
+        showError("Couldn't read that file. Please upload a valid CSV.");
+        validateForm();
+      }
+    });
+  }
+
+  startBtn.addEventListener('click', startBatch);
+
+  async function startBatch() {
+    clearError();
+    startBtn.disabled = true;
+    startBtn.textContent = "Starting…";
+
+    const formData = new FormData();
+    formData.append('csv', selectedFile);
+    formData.append('email', notifyEmail.value);
+
+    let batchId;
+    try {
+      const res = await fetch(INTAKE_URL, { method: 'POST', body: formData });
+      if (!res.ok) throw new Error('bad response');
+      const data = await res.json();
+      batchId = data.batchId;
+      if (!batchId) throw new Error('no batchId returned');
+    } catch (err) {
+      showError("Couldn't start the batch — the workflow may be offline. Try again in a moment.");
+      startBtn.disabled = false;
+      startBtn.textContent = "Start batch";
+      return;
+    }
+
+    document.getElementById('upload-view').style.display = 'none';
+    document.getElementById('run-view').style.display = 'block';
+    document.getElementById('batch-id-label').textContent = batchId.slice(0, 8);
+    document.getElementById('total-count').textContent = parsedRows.length;
+
+    initCompanyRows(parsedRows.map(r => r.Name));
+    pollStatus(batchId, parsedRows.length);
+  }
+
+  const rowElements = {};
+
+  function initCompanyRows(names) {
+    const list = document.getElementById('company-list');
+    names.forEach(name => {
+      const row = document.createElement('div');
+      row.className = 'company-row';
+      row.innerHTML = `
+        <div class="company-name" data-name="${name}">
+          <span class="dot"></span> ${name}
+        </div>
+        <div class="pipeline">
+          <div class="pipeline-track"></div>
+          <div class="pipeline-track-fill"></div>
+          ${STAGES.map(s => `
+            <div class="stage" data-stage="${s.key}">
+              <div class="stage-dot">•</div>
+              <div class="stage-label">${s.label}</div>
+            </div>
+          `).join('')}
+        </div>
+        <div class="email-slot"></div>
+      `;
+      list.appendChild(row);
+      rowElements[name] = row;
+    });
+  }
+
+  function updateCompanyRow(name, progressRows) {
+    const row = rowElements[name];
+    if (!row) return;
+
+    const stagesDone = new Set(progressRows.filter(p => p.status === 'done').map(p => p.step));
+    const hasError = progressRows.some(p => p.status === 'error');
+    const stageIndexes = STAGES.map(s => s.key);
+    let lastDoneIdx = -1;
+    stageIndexes.forEach((k, i) => { if (stagesDone.has(k)) lastDoneIdx = i; });
+
+    row.querySelectorAll('.stage').forEach((el, i) => {
+      el.classList.remove('done', 'active', 'error');
+      if (hasError && i === lastDoneIdx + 1) {
+        el.classList.add('error');
+      } else if (i <= lastDoneIdx) {
+        el.classList.add('done');
+        el.querySelector('.stage-dot').textContent = '✓';
+      } else if (i === lastDoneIdx + 1) {
+        el.classList.add('active');
+      }
+    });
+
+    const fillPct = lastDoneIdx >= 0 ? ((lastDoneIdx + 1) / STAGES.length) * 100 : 0;
+    row.querySelector('.pipeline-track-fill').style.width = `calc(${fillPct}% - 24px)`;
+
+    const nameEl = row.querySelector('.company-name');
+    nameEl.classList.toggle('done', lastDoneIdx === STAGES.length - 1);
+    nameEl.classList.toggle('error', hasError);
+
+    const emailRow = progressRows.find(p => p.step === 'email_ready' && p.status === 'done');
+    const slot = row.querySelector('.email-slot');
+    if (emailRow && !slot.dataset.rendered) {
+      slot.dataset.rendered = "true";
+      slot.innerHTML = `
+        <div class="email-preview">
+          <div class="subject">${emailRow.email_subject || 'Outreach email ready'}</div>
+          <div class="snippet">${(emailRow.email_preview || '').slice(0, 220)}${(emailRow.email_preview || '').length > 220 ? '…' : ''}</div>
+          ${emailRow.site_url ? `<a class="site-link" href="${emailRow.site_url}" target="_blank" rel="noopener">View generated site →</a>` : ''}
+        </div>
+      `;
+    }
+  }
+
+  async function pollStatus(batchId, totalExpected) {
+    let doneCount = 0;
+    const poll = async () => {
+      try {
+        const res = await fetch(`${STATUS_URL}?batchId=${encodeURIComponent(batchId)}`);
+        const rows = await res.json();
+
+        const byCompany = {};
+        rows.forEach(r => {
+          (byCompany[r.company_name] = byCompany[r.company_name] || []).push(r);
+        });
+
+        doneCount = 0;
+        Object.entries(byCompany).forEach(([name, progressRows]) => {
+          updateCompanyRow(name, progressRows);
+          if (progressRows.some(p => p.step === 'email_ready' && p.status === 'done')) doneCount++;
+        });
+
+        document.getElementById('done-count').textContent = doneCount;
+        document.getElementById('overall-fill').style.width = `${(doneCount / totalExpected) * 100}%`;
+
+        if (doneCount >= totalExpected) {
+          document.getElementById('final-count').textContent = doneCount;
+          document.getElementById('done-banner').style.display = 'block';
+          return; // stop polling
+        }
+      } catch (err) {
+        // silent retry — a transient network hiccup shouldn't stop the run
+      }
+      setTimeout(poll, POLL_INTERVAL_MS);
+    };
+    poll();
+  }
+</script>
+
+</body>
+</html>
