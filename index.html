@@ -820,7 +820,11 @@
 
     let batchId;
     try {
-      const res = await fetch(INTAKE_URL, { method: 'POST', body: formData });
+      const res = await fetch(INTAKE_URL, {
+        method: 'POST',
+        headers: { 'ngrok-skip-browser-warning': 'true' },
+        body: formData
+      });
       if (!res.ok) throw new Error('bad response');
       const data = await res.json();
       batchId = data.batchId;
@@ -916,7 +920,9 @@
     let doneCount = 0;
     const poll = async () => {
       try {
-        const res = await fetch(`${STATUS_URL}?batchId=${encodeURIComponent(batchId)}`);
+        const res = await fetch(`${STATUS_URL}?batchId=${encodeURIComponent(batchId)}`, {
+          headers: { 'ngrok-skip-browser-warning': 'true' }
+        });
         const rows = await res.json();
 
         const byCompany = {};
